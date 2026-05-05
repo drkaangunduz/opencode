@@ -139,6 +139,7 @@ export function Prompt(props: PromptProps) {
   const dimensions = useTerminalDimensions()
   const { theme, syntax } = useTheme()
   const kv = useKV()
+  const [autoaccept, setAutoaccept] = kv.signal<"none" | "edit">("permission_auto_accept", "edit")
   const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
   const list = createMemo(() => props.placeholders?.normal ?? [])
   const shell = createMemo(() => props.placeholders?.shell ?? [])
@@ -181,7 +182,7 @@ export function Prompt(props: PromptProps) {
   const [workspaceCreatingDots, setWorkspaceCreatingDots] = createSignal(3)
   const [warpNotice, setWarpNotice] = createSignal<string>()
   const currentProviderLabel = createMemo(() => local.model.parsed().provider)
-  const hasRightContent = createMemo(() => Boolean(props.right))
+  const hasRightContent = createMemo(() => Boolean(props.right) || autoaccept() === "edit")
 
   function selectWorkspace(selection: WorkspaceSelection | undefined) {
     setWorkspaceSelection(selection)
@@ -405,6 +406,16 @@ export function Prompt(props: PromptProps) {
           const handled = await submit()
           if (!handled) return
 
+          dialog.clear()
+        },
+      },
+      {
+        title: autoaccept() === "none" ? "Enable autoedit" : "Disable autoedit",
+        value: "permission.auto_accept.toggle",
+        search: "toggle permissions",
+        category: "Agent",
+        onSelect: (dialog) => {
+          setAutoaccept(() => (autoaccept() === "none" ? "edit" : "none"))
           dialog.clear()
         },
       },
@@ -1462,6 +1473,11 @@ export function Prompt(props: PromptProps) {
               <Show when={hasRightContent()}>
                 <box flexDirection="row" gap={1} alignItems="center">
                   {props.right}
+                  <Show when={autoaccept() === "edit"}>
+                    <text>
+                      <span style={{ fg: theme.warning }}>autoedit</span>
+                    </text>
+                  </Show>
                 </box>
               </Show>
             </box>
